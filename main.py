@@ -58,25 +58,25 @@ class LinearDecayStepSizeRule(StepSizeRule):
         self.decay = decay
         self.step_size = initial_step_size
 
-    def __call__(self, algorithm):
-        self.step_size = self.initial_step_size / (1 + self.decay * algorithm.iteration)
-        return self.step_size
+    def get_step_size(self, algorithm):
+        return self.initial_step_size / (1 + self.decay * algorithm.iteration)
 
 #%%
 class Submission(ISTA):
     """Stochastic variance reduced subset version of preconditioned ISTA"""
 
     # note that `issubclass(ISTA, Algorithm) == True`
-    def __init__(self, data: Dataset, update_objective_interval: int = 0):
+    def __init__(self, data: Dataset):
         """
         Initialisation function, setting up data & (hyper)parameters.
         NB: in practice, `num_subsets` should likely be determined from the data.
         This is just an example. Try to modify and improve it!
         """
 
-        num_subsets = data.acquired_data.dimensions()[2]
+        num_subsets = data.acquired_data.dimensions()[2]//8
         initial_step_size = 0.5
-        
+        decay = (1/0.9-1) / num_subsets
+
         data_subs, acq_models, obj_funs = partitioner.data_partition(data.acquired_data, data.additive_term,
                                                                     data.mult_factors, num_subsets, mode='staggered',
                                                                     initial_image=data.OSEM_image)
@@ -90,9 +90,9 @@ class Submission(ISTA):
         preconditioner = MyPreconditioner(data.kappa)
         f = -SVRGFunction(obj_funs, sampler=sampler, snapshot_update_interval=None, store_gradients=True)
         g = IndicatorBox(lower=0, accelerated=True) # non-negativity constraint
-        step_size_rule = LinearDecayStepSizeRule(initial_step_size, decay=1e-3)
+        step_size_rule = LinearDecayStepSizeRule(initial_step_size, decay=decay)
 
         super().__init__(initial=data.OSEM_image, f=f, g=g, step_size=step_size_rule, preconditioner=preconditioner,
-                         update_objective_interval=update_objective_interval)
+                         update_objective_interval=0)
         
 submission_callbacks = [MaxIteration(np.inf)]
