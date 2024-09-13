@@ -9,7 +9,7 @@ Once renamed or symlinked as `main.py`, it will be used by `petric.py` as follow
 """
 #%%
 from cil.optimisation.algorithms import ISTA, Algorithm
-from cil.optimisation.functions import IndicatorBox, SVRGFunction
+from cil.optimisation.functions import IndicatorBox, SAGAFunction
 from cil.optimisation.utilities import (Preconditioner, Sampler, 
                                         callbacks, StepSizeRule)
 from petric import Dataset
@@ -88,7 +88,7 @@ class Submission(ISTA):
             
         sampler = Sampler.random_without_replacement(len(obj_funs))
         preconditioner = MyPreconditioner(data.kappa)
-        f = -SVRGFunction(obj_funs, sampler=sampler, snapshot_update_interval=None, store_gradients=True)
+        f = -SAGAFunction(obj_funs, sampler=sampler, snapshot_update_interval=None, store_gradients=True)
         g = IndicatorBox(lower=0, accelerated=True) # non-negativity constraint
         step_size_rule = LinearDecayStepSizeRule(initial_step_size, decay=decay)
 
