@@ -88,11 +88,11 @@ class Submission(ISTA):
             
         sampler = Sampler.random_without_replacement(len(obj_funs))
         preconditioner = MyPreconditioner(data.kappa)
-        f = -SAGAFunction(obj_funs, sampler=sampler, snapshot_update_interval=None, store_gradients=True)
+        f = -SAGAFunction(obj_funs, sampler=sampler)
         g = IndicatorBox(lower=0, accelerated=True) # non-negativity constraint
         step_size_rule = LinearDecayStepSizeRule(initial_step_size, decay=decay)
 
         super().__init__(initial=data.OSEM_image, f=f, g=g, step_size=step_size_rule, preconditioner=preconditioner,
                          update_objective_interval=0)
         
-submission_callbacks = [MaxIteration(np.inf)]
+submission_callbacks = []
