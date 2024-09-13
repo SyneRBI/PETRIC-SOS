@@ -13,3 +13,8 @@ __pycache__/
 *.ahv
 *.hv
 *.v
+
+NeuroLF_Hoffman_Dataset/
+Siemens_mMR_NEMA_IQ/
+Siemens_Vision600_thorax/
+run.py
