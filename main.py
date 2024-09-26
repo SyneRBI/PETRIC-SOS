@@ -9,7 +9,7 @@ Once renamed or symlinked as `main.py`, it will be used by `petric.py` as follow
 """
 #%%
 from cil.optimisation.algorithms import ISTA, Algorithm
-from cil.optimisation.functions import IndicatorBox, SVRGFunction
+from cil.optimisation.functions import IndicatorBox, SAGAFunction
 from cil.optimisation.utilities import (Preconditioner, Sampler,
                                         StepSizeRule)
 from petric import Dataset
@@ -149,7 +149,7 @@ class Submission(ISTA):
             grad -= f.gradient(data.OSEM_image)
             
         sampler = Sampler.random_without_replacement(len(obj_funs))
-        f = -SVRGFunction(obj_funs, sampler=sampler, snapshot_update_interval=update_interval, store_gradients=True)
+        f = -SAGAFunction(obj_funs, sampler=sampler, snapshot_update_interval=update_interval, store_gradients=True)
 
         preconditioner = BSREMPreconditioner(acq_models, epsilon=data.OSEM_image.max()/1e6, freeze_iter=10*update_interval)
         g = IndicatorBox(lower=0, accelerated=True) # non-negativity constraint
