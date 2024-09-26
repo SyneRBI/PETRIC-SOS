@@ -127,7 +127,6 @@ class Submission(ISTA):
         
         # Very simple heuristic to determine the number of subsets
         self.num_subsets = calculate_subsets(data.acquired_data, min_counts_per_subset=2**20)   
-        print(f"Number of subsets: {self.num_subsets}")
         update_interval = self.num_subsets
         # 10% decay per update interval
         upper_decay_perc = 0.1
