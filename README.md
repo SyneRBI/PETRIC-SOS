@@ -10,7 +10,7 @@ SVRG with a projected gradient descent warm start and armijo line searches.
 SVRG minimises a sum of differentiable functions, $x^* = \underset{x}{\text{arg min}}\sum_n f_n(x)$. It approximates the gradient at each iteration by
 $$
 \begin{equation}
-    g^{(k)} = n\left(\nabla_n f(x^{(k)}) - \nabla_n f(\tilde{x})\right) + \nabla f(\tilde{x})
+    g^{(k)} = N\left(\nabla_n f(x^{(k)}) - \nabla_n f(\tilde{x})\right) + \nabla f(\tilde{x})
 \end{equation}
 $$
 where N is the number of sub-functions and $\tilde{x}$ is an anchor point where a full gradient has been calculated.

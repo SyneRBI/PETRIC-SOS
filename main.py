@@ -8,14 +8,12 @@ Once renamed or symlinked as `main.py`, it will be used by `petric.py` as follow
 >>> algorithm.run(np.inf, callbacks=metrics + submission_callbacks)
 """
 #%%
-from sirf.STIR import AcquisitionData
-AcquisitionData.set_storage_scheme('memory')
 from cil.optimisation.algorithms import ISTA, Algorithm
 from cil.optimisation.functions import IndicatorBox, SVRGFunction
 from cil.optimisation.utilities import (Preconditioner, Sampler,
                                         StepSizeRule)
-from petric import Dataset
 from sirf.contrib.partitioner import partitioner
+from petric import Dataset
 import numpy as np
 import numbers
 
@@ -240,10 +238,14 @@ class Submission(ISTA):
         decay_perc = 0.1
         decay = (1/(1-decay_perc) - 1)/update_interval
         beta = 0.5
+        
+        print(f"Using {self.num_subsets} subsets")
 
         _, _, obj_funs = partitioner.data_partition(data.acquired_data, data.additive_term,
                                                                     data.mult_factors, self.num_subsets, mode='staggered',
                                                                     initial_image=data.OSEM_image)
+        
+        print("made it past partitioner")
         
         data.prior.set_penalisation_factor(data.prior.get_penalisation_factor() / len(obj_funs))
         data.prior.set_up(data.OSEM_image)
