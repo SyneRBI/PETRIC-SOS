@@ -9,25 +9,21 @@ Once renamed or symlinked as `main.py`, it will be used by `petric.py` as follow
 """
 #%%
 from cil.optimisation.algorithms import ISTA, Algorithm
-from cil.optimisation.functions import IndicatorBox, SAGAFunction, ApproximateGradientSumFunction
+from cil.optimisation.functions import IndicatorBox, SAGAFunction
 from cil.optimisation.utilities import (Preconditioner, Sampler,
                                         StepSizeRule)
 from petric import Dataset
 from sirf.contrib.partitioner import partitioner
-import sirf.STIR as pet
 import numpy as np
 
 assert issubclass(ISTA, Algorithm)
 
 class BSREMPreconditioner(Preconditioner):
-    '''Step size rule for BSREM algorithm.
-    
-    ::math::
-        x^+ = x + t \nabla \log L(y|x)
-        
-    with :math:`t = x / s` where :math:`s` is the adjoint of the range geometry of the acquisition model.
     '''
-    def __init__(self, acq_models, freeze_iter = np.inf, epsilon=1e-6, fwhm=None):
+    Preconditioner for BSREM
+    '''
+    
+    def __init__(self, acq_models, freeze_iter = np.inf, epsilon=1e-6):
 
         self.epsilon = epsilon
         self.freeze_iter = freeze_iter
@@ -36,7 +32,6 @@ class BSREMPreconditioner(Preconditioner):
         for i,el in enumerate(acq_models):
             if i == 0:
                 self.s_sum_inv = el.domain_geometry().get_uniform_copy(0.)
-                self.s_sum = el.domain_geometry().get_uniform_copy(0.)
             ones = el.range_geometry().allocate(1.)
             s_inv = el.adjoint(ones)
             arr = s_inv.as_array()
@@ -47,10 +42,10 @@ class BSREMPreconditioner(Preconditioner):
     def apply(self, algorithm, gradient, out=None):
         
         if algorithm.iteration < self.freeze_iter:
-            ret =  gradient * (algorithm.solution * self.s_sum_inv + self.epsilon)
+            ret =  gradient * ((algorithm.solution.copy() * self.s_sum_inv) + self.epsilon)
         else:
             if self.x_freeze is None:
-                self.x_freeze = algorithm.solution.copy() * self.s_sum_inv + self.epsilon
+                self.x_freeze = (algorithm.solution.copy() * self.s_sum_inv) + self.epsilon
             ret =  gradient * self.x_freeze
         if out is not None:
             out.fill(ret)
@@ -86,8 +81,8 @@ def calculate_subsets(sino, min_counts_per_subset=2**20, max_num_subsets=20):
     
     # Calculate the maximum number of subsets based on minimum counts per subset
     max_subsets = int(total_counts / min_counts_per_subset)
-    # ensure less than views / 8 subsets
-    max_subsets = min(max_subsets, views // 8)
+    # ensure less than views / 4 subsets
+    max_subsets = min(max_subsets, views // 4)
     # ensure less than max_subsets
     max_subsets = min(max_subsets, max_num_subsets)
     # Find a divisor of the number of views that results in the closest number of subsets
@@ -101,7 +96,7 @@ def calculate_subsets(sino, min_counts_per_subset=2**20, max_num_subsets=20):
 
 class ArmijoStepSearchRule(StepSizeRule):
     """
-    Armijo rule for step size.
+    Armijo rule for step size for initial steps, followed by linear decay.
     """
     def __init__(self, initial_step_size: float, beta: float, decay: float, max_iter: int, tol: float, init_steps: int, update_interval=1):
         
@@ -115,6 +110,7 @@ class ArmijoStepSearchRule(StepSizeRule):
         self.counter = 0
         self.linear_decay = None
         self.decay = decay
+        self.f_x = None
 
     def get_step_size(self, algorithm):
         """
@@ -124,8 +120,10 @@ class ArmijoStepSearchRule(StepSizeRule):
         After Armijo iterations are exhausted, linear decay is applied.
         """
         # Check if we're within the initial steps or at an update interval
-        if self.counter < self.steps or algorithm.iteration == self.update_interval:
-            f_x = algorithm.f(algorithm.solution) + algorithm.g(algorithm.solution)
+        if self.counter < self.steps: # or algorithm.iteration == self.update_interval:
+            if self.f_x is None:
+                self.f_x = algorithm.f(algorithm.solution) + algorithm.g(algorithm.solution)
+            print(f"Current function value: {self.f_x}")
             precond_grad = algorithm.preconditioner.apply(algorithm, algorithm.gradient_update)
             g_norm = algorithm.gradient_update.dot(precond_grad)
             
@@ -135,11 +133,13 @@ class ArmijoStepSearchRule(StepSizeRule):
             # Armijo step size search
             for _ in range(self.max_iter):
                 # Proximal step
-                x_new = algorithm.g.proximal(algorithm.solution - step_size * precond_grad, step_size)
+                x_new = algorithm.g.proximal(algorithm.solution.copy() - step_size * precond_grad, step_size)
                 f_x_new = algorithm.f(x_new) + algorithm.g(x_new)
+                print("f_x_new: ", f_x_new)
                 
                 # Armijo condition check
-                if f_x_new <= f_x - self.tol * step_size * g_norm:
+                if f_x_new <= self.f_x - self.tol * step_size * g_norm:
+                    self.f_x = f_x_new
                     break
                 
                 # Reduce step size
@@ -151,12 +151,12 @@ class ArmijoStepSearchRule(StepSizeRule):
             if self.counter < self.steps:
                 self.counter += 1
             
-            print(f"Armijo step size: {self.step_size}")
-            
+            print(f"Armijo step size: {step_size}")
             return step_size
 
         # Apply linear decay if Armijo steps are done
-        if self.linear_decay is None or algorithm.iteration == self.update_interval:
+        if self.linear_decay is None: # or algorithm.iteration == self.update_interval:
+            self.f_x = None
             print(f"Linear decay with decay rate: {self.decay} and step size: {self.step_size}")
             self.linear_decay = LinearDecayStepSizeRule(self.step_size, self.decay)
         
@@ -180,6 +180,8 @@ def update(self):
 
     # proximal step
     self.g.proximal(self.x_old, step_size, out=self.x)
+    
+ISTA.update = update
     
 class FullGradientInitialiserFunction(SAGAFunction):
     
@@ -248,13 +250,10 @@ class Submission(ISTA):
         sampler = Sampler.random_without_replacement(len(obj_funs))
         f = -FullGradientInitialiserFunction(obj_funs, sampler=sampler, init_steps=5)
 
-        preconditioner = BSREMPreconditioner(acq_models, epsilon=data.OSEM_image.max()/1e5, freeze_iter=10*update_interval+5, fwhm=fwhm)
+        preconditioner = BSREMPreconditioner(acq_models, epsilon=data.OSEM_image.max()/1e6, freeze_iter=10*update_interval+5)
         g = IndicatorBox(lower=0, accelerated=True) # non-negativity constraint
             
-        #step_size_rule = LinearDecayStepSizeRule(initial_step_size, decay)
-        step_size_rule = ArmijoStepSearchRule(0.08, beta, decay, max_iter=100, tol=0.1, init_steps=5, update_interval=10*update_interval+5)
-        
-        #update_objective_interval = update_interval # TODO: delete
+        step_size_rule = ArmijoStepSearchRule(0.08, beta, decay, max_iter=100, tol=0.2, init_steps=5, update_interval=10*update_interval+5)
         
         super().__init__(initial=data.OSEM_image, f=f, g=g, step_size=step_size_rule, 
                          preconditioner=preconditioner, update_objective_interval=update_objective_interval)
