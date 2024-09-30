@@ -148,6 +148,7 @@ class ArmijoStepSearchRule(StepSizeRule):
             
             # Update the internal state with the new step size as the minimum of the current and previous step sizes
             self.step_size = min(step_size, self.step_size)
+            self.initial_step_size = self.step_size
             
             if self.counter < self.steps:
                 self.counter += 1
