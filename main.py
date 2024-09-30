@@ -18,6 +18,38 @@ import numpy as np
 
 assert issubclass(ISTA, Algorithm)
 
+class FullGradientInitialiserFunction(SAGAFunction):
+    
+    def __init__(self, functions, sampler=None, init_steps=0, **kwargs):
+        
+        super(FullGradientInitialiserFunction, self).__init__(functions, sampler=sampler, **kwargs)
+        self.counter = 0
+        self.init_steps = init_steps
+        
+    def gradient(self, x, out=None):
+        """ Selects a random function using the `sampler` anad then calls the approximate gradient at :code:`x`
+
+        Parameters
+        ----------
+        x : DataContainer
+        out: return DataContainer, if `None` a new DataContainer is returned, default `None`.
+
+        Returns
+        --------
+        DataContainer
+            the value of the approximate gradient of the sum function at :code:`x`   
+        """
+        
+        while self.counter < self.init_steps:
+            self.counter += 1
+            return self.full_gradient(x, out=out)
+
+        self.function_num = self.sampler.next()
+        
+        self._update_data_passes_indices([self.function_num])
+        
+        return self.approximate_gradient(x, self.function_num, out=out)
+
 class BSREMPreconditioner(Preconditioner):
     '''
     Preconditioner for BSREM
@@ -64,36 +96,6 @@ class LinearDecayStepSizeRule(StepSizeRule):
     def get_step_size(self, algorithm):
         return self.initial_step_size / (1 + self.decay * algorithm.iteration)
 
-def calculate_subsets(sino, min_counts_per_subset=2**20, max_num_subsets=20):
-    """
-    Calculate the number of subsets for a given sinogram such that each subset
-    has at least the minimum number of counts.
-
-    Args:
-        sino: A sinogram object with .dimensions() and .sum() methods.
-        min_counts_per_subset (float): Minimum number of counts per subset (default is 11057672.26).
-
-    Returns:
-        int: The number of subsets that can be created while maintaining the minimum counts per subset.
-    """
-    views = sino.dimensions()[2]  # Extract the number of views
-    total_counts = sino.sum()     # Sum of counts for the sinogram
-    
-    # Calculate the maximum number of subsets based on minimum counts per subset
-    max_subsets = int(total_counts / min_counts_per_subset)
-    # ensure less than views / 4 subsets
-    max_subsets = min(max_subsets, views // 4)
-    # ensure less than max_subsets
-    max_subsets = min(max_subsets, max_num_subsets)
-    # Find a divisor of the number of views that results in the closest number of subsets
-    subsets = max(1, min(views, max_subsets))
-
-    # Ensure subsets is a divisor of views
-    while views % subsets != 0 and subsets > 1:
-        subsets -= 1
-    
-    return subsets
-
 class ArmijoStepSearchRule(StepSizeRule):
     """
     Armijo rule for step size for initial steps, followed by linear decay.
@@ -123,6 +125,7 @@ class ArmijoStepSearchRule(StepSizeRule):
         if self.counter < self.steps: # or algorithm.iteration == self.update_interval:
             if self.f_x is None:
                 self.f_x = algorithm.f(algorithm.solution) + algorithm.g(algorithm.solution)
+            print(f"Current function value: {self.f_x}")
             precond_grad = algorithm.preconditioner.apply(algorithm, algorithm.gradient_update)
             g_norm = algorithm.gradient_update.dot(precond_grad)
             
@@ -134,30 +137,65 @@ class ArmijoStepSearchRule(StepSizeRule):
                 # Proximal step
                 x_new = algorithm.g.proximal(algorithm.solution.copy() - step_size * precond_grad, step_size)
                 f_x_new = algorithm.f(x_new) + algorithm.g(x_new)
-                
+                print("f_x_new: ", f_x_new)
                 # Armijo condition check
                 if f_x_new <= self.f_x - self.tol * step_size * g_norm:
                     self.f_x = f_x_new
                     break
                 
+                print(f"step_size: {step_size}")
+                
                 # Reduce step size
                 step_size *= self.beta
             
-            # Update the internal state with the new step size
-            self.step_size = step_size
+            # Update the internal state with the new step size as the minimum of the current and previous step sizes
+            self.step_size = min(step_size, self.step_size)
+            
             self.initial_step_size = step_size / self.beta   # Adjust initial step size for next search
             if self.counter < self.steps:
                 self.counter += 1
             
+            print(f"Armijo step size: {step_size}")
             return step_size
 
         # Apply linear decay if Armijo steps are done
         if self.linear_decay is None: # or algorithm.iteration == self.update_interval:
             self.f_x = None
+            print(f"Linear decay with decay rate: {self.decay} and step size: {self.step_size}")
             self.linear_decay = LinearDecayStepSizeRule(self.step_size, self.decay)
         
         # Return decayed step size
         return self.linear_decay.get_step_size(algorithm)
+    
+def calculate_subsets(sino, min_counts_per_subset=2**20, max_num_subsets=16):
+    """
+    Calculate the number of subsets for a given sinogram such that each subset
+    has at least the minimum number of counts.
+
+    Args:
+        sino: A sinogram object with .dimensions() and .sum() methods.
+        min_counts_per_subset (float): Minimum number of counts per subset (default is 11057672.26).
+
+    Returns:
+        int: The number of subsets that can be created while maintaining the minimum counts per subset.
+    """
+    views = sino.dimensions()[2]  # Extract the number of views
+    total_counts = sino.sum()     # Sum of counts for the sinogram
+    
+    # Calculate the maximum number of subsets based on minimum counts per subset
+    max_subsets = int(total_counts / min_counts_per_subset)
+    # ensure less than views / 4 subsets
+    max_subsets = min(max_subsets, views // 4)
+    # ensure less than max_subsets
+    max_subsets = min(max_subsets, max_num_subsets)
+    # Find a divisor of the number of views that results in the closest number of subsets
+    subsets = max(1, min(views, max_subsets))
+
+    # Ensure subsets is a divisor of views
+    while views % subsets != 0 and subsets > 1:
+        subsets -= 1
+    
+    return subsets
 
 def update(self):
     r"""Performs a single iteration of ISTA with the preconditioner step separated
@@ -178,38 +216,6 @@ def update(self):
     self.g.proximal(self.x_old, step_size, out=self.x)
     
 ISTA.update = update
-    
-class FullGradientInitialiserFunction(SAGAFunction):
-    
-    def __init__(self, functions, sampler=None, init_steps=0, **kwargs):
-        
-        super(FullGradientInitialiserFunction, self).__init__(functions, sampler=sampler, **kwargs)
-        self.counter = 0
-        self.init_steps = init_steps
-        
-    def gradient(self, x, out=None):
-        """ Selects a random function using the `sampler` anad then calls the approximate gradient at :code:`x`
-
-        Parameters
-        ----------
-        x : DataContainer
-        out: return DataContainer, if `None` a new DataContainer is returned, default `None`.
-
-        Returns
-        --------
-        DataContainer
-            the value of the approximate gradient of the sum function at :code:`x`   
-        """
-        
-        while self.counter < self.init_steps:
-            self.counter += 1
-            return self.full_gradient(x, out=out)
-
-        self.function_num = self.sampler.next()
-        
-        self._update_data_passes_indices([self.function_num])
-        
-        return self.approximate_gradient(x, self.function_num, out=out)
 
 class Submission(ISTA):
     """Stochastic variance reduced subset version of preconditioned ISTA"""
@@ -221,13 +227,13 @@ class Submission(ISTA):
         """
         
         # Very simple heuristic to determine the number of subsets
-        self.num_subsets = calculate_subsets(data.acquired_data, min_counts_per_subset=2**20)   
+        self.num_subsets = calculate_subsets(data.acquired_data, min_counts_per_subset=2**20, max_num_subsets=16) 
         update_interval = self.num_subsets
-        # 20% decay per update interval
+        # 10% decay per update interval
         decay_perc = 0.1
         decay = (1/(1-decay_perc) - 1)/update_interval
         beta = 0.5
-        fwhm = data.OSEM_image.voxel_sizes()
+        print(self.num_subsets)
 
         data_subs, acq_models, obj_funs = partitioner.data_partition(data.acquired_data, data.additive_term,
                                                                     data.mult_factors, self.num_subsets, mode='staggered',
