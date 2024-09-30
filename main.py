@@ -123,7 +123,6 @@ class ArmijoStepSearchRule(StepSizeRule):
         if self.counter < self.steps: # or algorithm.iteration == self.update_interval:
             if self.f_x is None:
                 self.f_x = algorithm.f(algorithm.solution) + algorithm.g(algorithm.solution)
-            print(f"Current function value: {self.f_x}")
             precond_grad = algorithm.preconditioner.apply(algorithm, algorithm.gradient_update)
             g_norm = algorithm.gradient_update.dot(precond_grad)
             
@@ -135,7 +134,6 @@ class ArmijoStepSearchRule(StepSizeRule):
                 # Proximal step
                 x_new = algorithm.g.proximal(algorithm.solution.copy() - step_size * precond_grad, step_size)
                 f_x_new = algorithm.f(x_new) + algorithm.g(x_new)
-                print("f_x_new: ", f_x_new)
                 
                 # Armijo condition check
                 if f_x_new <= self.f_x - self.tol * step_size * g_norm:
@@ -151,13 +149,11 @@ class ArmijoStepSearchRule(StepSizeRule):
             if self.counter < self.steps:
                 self.counter += 1
             
-            print(f"Armijo step size: {step_size}")
             return step_size
 
         # Apply linear decay if Armijo steps are done
         if self.linear_decay is None: # or algorithm.iteration == self.update_interval:
             self.f_x = None
-            print(f"Linear decay with decay rate: {self.decay} and step size: {self.step_size}")
             self.linear_decay = LinearDecayStepSizeRule(self.step_size, self.decay)
         
         # Return decayed step size
