@@ -8,11 +8,11 @@ Once renamed or symlinked as `main.py`, it will be used by `petric.py` as follow
 >>> algorithm.run(np.inf, callbacks=metrics + submission_callbacks)
 """
 #%%
-import partitioner
 from cil.optimisation.algorithms import ISTA, Algorithm
 from cil.optimisation.functions import IndicatorBox, SAGAFunction
 from cil.optimisation.utilities import (Preconditioner, Sampler,
                                         StepSizeRule)
+from sirf.contrib.partitioner import partitioner
 from petric import Dataset
 import numpy as np
 
