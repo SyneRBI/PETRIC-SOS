@@ -1,6 +1,6 @@
 # PETRIC: PET Rapid Image reconstruction Challenge
 
-## Stochastic Optimisation with Subsets (SOS)
+## Stochastic Optimisation with Subsets (SOS) - SAGA
 
 Authors: Sam Porter 
 
@@ -27,4 +27,4 @@ The algorithm is warm started with 5 iterations of preconditioned gradient desce
 
 Acknowledgements: 
 - Thanks to Margaret Duff, Casper da Costa-Luis and Edoardo Pasca for all their help
-- This algorithm lies heavily on the stochastic implementations in CIL so thanks to all those wo've helped there, as well
+- This relies heavily on the stochastic implementations in CIL so thanks to all those wo've helped there, as well

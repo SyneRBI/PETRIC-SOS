@@ -59,7 +59,7 @@ class BSREMPreconditioner(Preconditioner):
 
         self.epsilon = epsilon
         self.freeze_iter = freeze_iter
-        self.x_freeze = None
+        self.freeze = None
 
         for i,el in enumerate(acq_models):
             if i == 0:
@@ -72,13 +72,12 @@ class BSREMPreconditioner(Preconditioner):
             self.s_sum_inv += s_inv
         
     def apply(self, algorithm, gradient, out=None):
-        
         if algorithm.iteration < self.freeze_iter:
-            ret =  gradient * ((algorithm.solution.copy() * self.s_sum_inv) + self.epsilon)
+            ret = gradient * ((algorithm.solution * self.s_sum_inv) + self.epsilon)
         else:
-            if self.x_freeze is None:
-                self.x_freeze = (algorithm.solution.copy() * self.s_sum_inv) + self.epsilon
-            ret =  gradient * self.x_freeze
+            if self.freeze is None:
+                self.freeze = ((algorithm.solution * self.s_sum_inv) + self.epsilon)
+            ret =  gradient * self.freeze
         if out is not None:
             out.fill(ret)
         else:
@@ -135,7 +134,8 @@ class ArmijoStepSearchRule(StepSizeRule):
             # Armijo step size search
             for _ in range(self.max_iter):
                 # Proximal step
-                x_new = algorithm.g.proximal(algorithm.solution.copy() - step_size * precond_grad, step_size)
+                x_new = algorithm.solution.copy().sapyb(1, precond_grad, -step_size)
+                algorithm.g.proximal(x_new, step_size, out=x_new)
                 f_x_new = algorithm.f(x_new) + algorithm.g(x_new)
                 print("f_x_new: ", f_x_new)
                 # Armijo condition check
@@ -151,7 +151,6 @@ class ArmijoStepSearchRule(StepSizeRule):
             # Update the internal state with the new step size as the minimum of the current and previous step sizes
             self.step_size = min(step_size, self.step_size)
             
-            self.initial_step_size = step_size / self.beta   # Adjust initial step size for next search
             if self.counter < self.steps:
                 self.counter += 1
             
@@ -225,7 +224,6 @@ class Submission(ISTA):
         """
         Initialisation function, setting up data & (hyper)parameters.
         """
-        
         # Very simple heuristic to determine the number of subsets
         self.num_subsets = calculate_subsets(data.acquired_data, min_counts_per_subset=2**20, max_num_subsets=16) 
         update_interval = self.num_subsets
@@ -242,12 +240,9 @@ class Submission(ISTA):
         
         data.prior.set_penalisation_factor(data.prior.get_penalisation_factor() / len(obj_funs))
         data.prior.set_up(data.OSEM_image)
-
-        grad = data.OSEM_image.get_uniform_copy(0)
         
         for f, d in zip(obj_funs, data_subs): # add prior to every objective function
             f.set_prior(data.prior)
-            grad -= f.gradient(data.OSEM_image)
             
         sampler = Sampler.random_without_replacement(len(obj_funs))
         f = -FullGradientInitialiserFunction(obj_funs, sampler=sampler, init_steps=5)
