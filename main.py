@@ -246,7 +246,7 @@ class Submission(ISTA):
         f = -FullGradientInitialiserFunction(obj_funs, sampler=sampler, init_steps=5)
 
         preconditioner = BSREMPreconditioner(obj_funs, epsilon=data.OSEM_image.max()/1e6, freeze_iter=10*update_interval+5)
-        g = IndicatorBox(lower=0, accelerated=True) # non-negativity constraint
+        g = IndicatorBox(lower=0, accelerated=False) # non-negativity constraint
             
         step_size_rule = ArmijoStepSearchRule(0.08, beta, decay, max_iter=100, tol=0.2, init_steps=5, update_interval=10*update_interval+5)
         
