@@ -297,6 +297,7 @@ else:
     from main import Submission, submission_callbacks
     assert issubclass(Submission, Algorithm)
     for srcdir, outdir, metrics in data_dirs_metrics:
+        log.info("Running on %s", srcdir)
         data = get_data(srcdir=srcdir, outdir=outdir)
         metrics_with_timeout = metrics[0]
         if data.reference_image is not None:
@@ -306,8 +307,11 @@ else:
         metrics_with_timeout.reset() # timeout from now
         algo = Submission(data)
         try:
-            algo.run(np.inf, callbacks=metrics + submission_callbacks, update_objective_interval=np.inf)
+            algo.run(np.inf, callbacks=submission_callbacks + metrics, update_objective_interval=np.inf)
         except Exception:
             print_exc(limit=2)
         finally:
             del algo
+
+        # This stops after the first dataset. REMOVE
+        # break
