@@ -182,7 +182,7 @@ class QualityMetrics(ImageQualityCallback, Callback):
 
 class MetricsWithTimeout(Callback):
     """Stops the algorithm after `seconds`"""
-    def __init__(self, seconds=3600, outdir=OUTDIR, transverse_slice=None, coronal_slice=None, sagittal_slice=None,
+    def __init__(self, seconds=300, outdir=OUTDIR, transverse_slice=None, coronal_slice=None, sagittal_slice=None,
                  tqdm_class=tqdm, **kwargs):
         super().__init__(**kwargs)
         self._seconds = seconds
@@ -306,7 +306,8 @@ DATA_SLICES = {
     'NeuroLF_Esser_Dataset': {},
     'Siemens_Vision600_ZrNEMAIQ': {'transverse_slice': 60}, 'GE_D690_NEMA_IQ': {'transverse_slice': 23},
     'Mediso_NEMA_IQ_lowcounts': {'transverse_slice': 22, 'coronal_slice': 74, 'sagittal_slice': 70},
-    'GE_DMI4_NEMA_IQ': {'transverse_slice': 27, 'coronal_slice': 109, 'sagittal_slice': 78}}
+    'GE_DMI4_NEMA_IQ': {'transverse_slice': 27, 'coronal_slice': 109, 'sagittal_slice': 78}
+    }
 
 if SRCDIR.is_dir() and not os.getenv("PETRIC_SKIP_DATA", False):
     # create list of existing data
@@ -314,30 +315,31 @@ if SRCDIR.is_dir() and not os.getenv("PETRIC_SKIP_DATA", False):
     data_dirs_metrics = [
         (SRCDIR / "Siemens_mMR_NEMA_IQ", OUTDIR / "mMR_NEMA",
          [MetricsWithTimeout(outdir=OUTDIR / "mMR_NEMA", **DATA_SLICES['Siemens_mMR_NEMA_IQ'])]),
-        (SRCDIR / "Siemens_mMR_NEMA_IQ_lowcounts", OUTDIR / "mMR_NEMA_lowcounts",
-         [MetricsWithTimeout(outdir=OUTDIR / "mMR_NEMA_lowcounts", **DATA_SLICES['Siemens_mMR_NEMA_IQ_lowcounts'])]),
-        (SRCDIR / "NeuroLF_Hoffman_Dataset", OUTDIR / "NeuroLF_Hoffman",
-         [MetricsWithTimeout(outdir=OUTDIR / "NeuroLF_Hoffman", **DATA_SLICES['NeuroLF_Hoffman_Dataset'])]),
-        (SRCDIR / "Siemens_Vision600_thorax", OUTDIR / "Vision600_thorax",
-         [MetricsWithTimeout(outdir=OUTDIR / "Vision600_thorax", **DATA_SLICES['Siemens_Vision600_thorax'])]),
-        (SRCDIR / "Siemens_mMR_ACR", OUTDIR / "mMR_ACR",
-         [MetricsWithTimeout(outdir=OUTDIR / "mMR_ACR", **DATA_SLICES['Siemens_mMR_ACR'])]),
-        (SRCDIR / "Mediso_NEMA_IQ", OUTDIR / "Mediso_NEMA",
-         [MetricsWithTimeout(outdir=OUTDIR / "Mediso_NEMA", **DATA_SLICES['Mediso_NEMA_IQ'])]),
-        (SRCDIR / "GE_DMI3_Torso", OUTDIR / "DMI3_Torso",
-         [MetricsWithTimeout(outdir=OUTDIR / "DMI3_Torso", **DATA_SLICES['GE_DMI3_Torso'])]),
-        (SRCDIR / "Siemens_Vision600_Hoffman", OUTDIR / "Vision600_Hoffman",
-         [MetricsWithTimeout(outdir=OUTDIR / "Vision600_Hoffman", **DATA_SLICES['Siemens_Vision600_Hoffman'])]),
-        (SRCDIR / "NeuroLF_Esser_Dataset", OUTDIR / "NeuroLF_Esser",
-         [MetricsWithTimeout(outdir=OUTDIR / "NeuroLF_Esser", **DATA_SLICES['NeuroLF_Esser_Dataset'])]),
-        (SRCDIR / "Siemens_Vision600_ZrNEMAIQ", OUTDIR / "Vision600_ZrNEMA",
-         [MetricsWithTimeout(outdir=OUTDIR / "Vision600_ZrNEMA", **DATA_SLICES['Siemens_Vision600_ZrNEMAIQ'])]),
-        (SRCDIR / "GE_D690_NEMA_IQ", OUTDIR / "D690_NEMA",
-         [MetricsWithTimeout(outdir=OUTDIR / "D690_NEMA", **DATA_SLICES['GE_D690_NEMA_IQ'])]),
-        (SRCDIR / "Mediso_NEMA_IQ_lowcounts", OUTDIR / "Mediso_NEMA_lowcounts",
-         [MetricsWithTimeout(outdir=OUTDIR / "Mediso_NEMA_lowcounts", **DATA_SLICES['Mediso_NEMA_IQ_lowcounts'])]),
-        (SRCDIR / "GE_DMI4_NEMA_IQ", OUTDIR / "DMI4_NEMA",
-         [MetricsWithTimeout(outdir=OUTDIR / "DMI4_NEMA", **DATA_SLICES['GE_DMI4_NEMA_IQ'])])]
+        # (SRCDIR / "Siemens_mMR_NEMA_IQ_lowcounts", OUTDIR / "mMR_NEMA_lowcounts",
+        #  [MetricsWithTimeout(outdir=OUTDIR / "mMR_NEMA_lowcounts", **DATA_SLICES['Siemens_mMR_NEMA_IQ_lowcounts'])]),
+        # (SRCDIR / "NeuroLF_Hoffman_Dataset", OUTDIR / "NeuroLF_Hoffman",
+        #  [MetricsWithTimeout(outdir=OUTDIR / "NeuroLF_Hoffman", **DATA_SLICES['NeuroLF_Hoffman_Dataset'])]),
+        # (SRCDIR / "Siemens_Vision600_thorax", OUTDIR / "Vision600_thorax",
+        #  [MetricsWithTimeout(outdir=OUTDIR / "Vision600_thorax", **DATA_SLICES['Siemens_Vision600_thorax'])]),
+        # (SRCDIR / "Siemens_mMR_ACR", OUTDIR / "mMR_ACR",
+        #  [MetricsWithTimeout(outdir=OUTDIR / "mMR_ACR", **DATA_SLICES['Siemens_mMR_ACR'])]),
+        # (SRCDIR / "Mediso_NEMA_IQ", OUTDIR / "Mediso_NEMA",
+        #  [MetricsWithTimeout(outdir=OUTDIR / "Mediso_NEMA", **DATA_SLICES['Mediso_NEMA_IQ'])]),
+        # (SRCDIR / "GE_DMI3_Torso", OUTDIR / "DMI3_Torso",
+        #  [MetricsWithTimeout(outdir=OUTDIR / "DMI3_Torso", **DATA_SLICES['GE_DMI3_Torso'])]),
+        # (SRCDIR / "Siemens_Vision600_Hoffman", OUTDIR / "Vision600_Hoffman",
+        #  [MetricsWithTimeout(outdir=OUTDIR / "Vision600_Hoffman", **DATA_SLICES['Siemens_Vision600_Hoffman'])]),
+        # (SRCDIR / "NeuroLF_Esser_Dataset", OUTDIR / "NeuroLF_Esser",
+        #  [MetricsWithTimeout(outdir=OUTDIR / "NeuroLF_Esser", **DATA_SLICES['NeuroLF_Esser_Dataset'])]),
+        # (SRCDIR / "Siemens_Vision600_ZrNEMAIQ", OUTDIR / "Vision600_ZrNEMA",
+        #  [MetricsWithTimeout(outdir=OUTDIR / "Vision600_ZrNEMA", **DATA_SLICES['Siemens_Vision600_ZrNEMAIQ'])]),
+        # (SRCDIR / "GE_D690_NEMA_IQ", OUTDIR / "D690_NEMA",
+        #  [MetricsWithTimeout(outdir=OUTDIR / "D690_NEMA", **DATA_SLICES['GE_D690_NEMA_IQ'])]),
+        # (SRCDIR / "Mediso_NEMA_IQ_lowcounts", OUTDIR / "Mediso_NEMA_lowcounts",
+        #  [MetricsWithTimeout(outdir=OUTDIR / "Mediso_NEMA_lowcounts", **DATA_SLICES['Mediso_NEMA_IQ_lowcounts'])]),
+        # (SRCDIR / "GE_DMI4_NEMA_IQ", OUTDIR / "DMI4_NEMA",
+        #  [MetricsWithTimeout(outdir=OUTDIR / "DMI4_NEMA", **DATA_SLICES['GE_DMI4_NEMA_IQ'])])
+    ]
 else:
     log.warning("Source directory does not exist: %s", SRCDIR)
     data_dirs_metrics = [(None, None, [])] # type: ignore
