@@ -299,7 +299,7 @@ DATA_SLICES = {
     'Siemens_mMR_NEMA_IQ_lowcounts': {'transverse_slice': 72, 'coronal_slice': 109, 'sagittal_slice': 89},
     'Siemens_mMR_ACR': {'transverse_slice': 99}, 'NeuroLF_Hoffman_Dataset': {'transverse_slice': 72},
     'Mediso_NEMA_IQ': {'transverse_slice': 22, 'coronal_slice': 89, 'sagittal_slice': 66},
-    'NeuroLF_Hoffman_Dataset': {}
+    'NeuroLF_Hoffman_Dataset': {},
     'Siemens_Vision600_thorax': {}, 
     'GE_DMI3_Torso': {}, 
     'Siemens_Vision600_Hoffman': {}, 
