@@ -8,7 +8,7 @@ Once renamed or symlinked as `main.py`, it will be used by `petric.py` as follow
 >>> algorithm.run(np.inf, callbacks=metrics + submission_callbacks)
 """
 from cil.optimisation.algorithms import ISTA, Algorithm
-from cil.optimisation.functions import IndicatorBox, SGFunction
+from cil.optimisation.functions import IndicatorBox, SGFunction, SAGFunction, SAGAFunction
 from cil.optimisation.utilities import ConstantStepSize, Preconditioner, Sampler, callbacks, StepSizeRule
 from petric import Dataset
 from sirf.contrib.partitioner import partitioner
@@ -44,13 +44,16 @@ class MyPreconditioner(Preconditioner):
         return gradient.divide(self.kappasq, out=out)
 
 
-def DecreasingStepSize(StepSizeRule):
-    def __init__(self, algo, initial_step_size):
-        self.algo = algo
+class DecreasingStepSize(StepSizeRule):
+    
+    def __init__(self, initial_step_size, num_subsets):
+        self.iteration_num = 0
+        self.num_subsets = num_subsets
         self.initial_step_size = initial_step_size
 
-    def get_step_size(self):
-        tmp_epoch = self.algo.iteration // (int(len(self.algo.f.functions)/2))
+    def get_step_size(self, algorithm):
+        self.iteration_num += 1
+        tmp_epoch = self.iteration_num // (self.num_subsets/2)
         step_size = self.initial_step_size / (1. + 0.1 * tmp_epoch) 
         return step_size
 
@@ -74,10 +77,12 @@ class Submission(ISTA):
         for f in obj_funs: # add prior evenly to every objective function
             f.set_prior(data.prior)
 
-        sampler = Sampler.random_without_replacement(len(obj_funs))
-        f = -SGFunction(obj_funs, sampler=sampler)   # negative to turn minimiser into maximiser
-        step_size_rule = ConstantStepSize(step_size) # ISTA default step_size is 0.99*2.0/F.L
-        # step_size_rule = DecreasingStepSize(self, step_size)
+        sampler = Sampler.random_with_replacement(len(obj_funs))
+
+        # f = -SGFunction(obj_funs, sampler=sampler)   # negative to turn minimiser into maximiser
+        f = -SAGAFunction(obj_funs, sampler=sampler)
+        # step_size_rule = ConstantStepSize(step_size) # ISTA default step_size is 0.99*2.0/F.L
+        step_size_rule = DecreasingStepSize(initial_step_size=step_size, num_subsets=num_subsets)
         g = IndicatorBox(lower=0, accelerated=False) # non-negativity constraint
 
         preconditioner = MyPreconditioner(data.kappa)
@@ -85,4 +90,4 @@ class Submission(ISTA):
                          update_objective_interval=update_objective_interval)
 
 
-submission_callbacks = [MaxIteration(80)]
+submission_callbacks = [ MaxIteration(80) ]
