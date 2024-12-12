@@ -11,6 +11,9 @@ It is included here purely in the interest of transparency.
 Usage:
   petric.py [options]
 
+Example"
+  STOCHASTIC_FUNCTION=SAGAFunction python petric.py
+
 Options:
   --log LEVEL  : Set logging level (DEBUG, [default: INFO], WARNING, ERROR, CRITICAL)
 """
@@ -36,11 +39,21 @@ from img_quality_cil_stir import ImageQualityCallback
 
 log = logging.getLogger('petric')
 TEAM = os.getenv("GITHUB_REPOSITORY", "SyneRBI/PETRIC-").split("/PETRIC-", 1)[-1]
+log.info(f"TEAM is set to {TEAM}")
+PFUN = os.getenv("STOCHASTIC_FUNCTION", "SGFunction")
+log.info(f"PFUN is set to {PFUN}")
+TEAM = PFUN.split("Function")[0]
+log.info(f"TEAM is set to {TEAM}")
 VERSION = os.getenv("GITHUB_REF_NAME", "")
+log.info(f"VERSION is set to {VERSION}")
+VERSION = os.getenv("NUM_SUBSETS", "21")
+log.info(f"VERSION is set to {VERSION}")
 OUTDIR = Path(f"/o/logs/{TEAM}/{VERSION}" if TEAM and VERSION else "./output")
+OUTDIR = Path(f"./output/{TEAM}/{VERSION}" if TEAM and VERSION else "./output")
+log.info(f"OUTDIR is set to {OUTDIR}")
 if not (SRCDIR := Path("/mnt/share/petric")).is_dir():
     SRCDIR = Path("./data")
-
+log.info(f"SRCDIR is set to {SRCDIR}")
 
 class Callback(cil_callbacks.Callback):
     """
@@ -369,22 +382,21 @@ else:
                  'SVRGFunction' : {},
                  'LSVRGFunction': {},
                 }
-    for k,v in functions.items():
-        for srcdir, outdir, metrics in data_dirs_metrics:
-            data = get_data(srcdir=srcdir, outdir=outdir)
-            metrics_with_timeout = metrics[0]
-            if data.reference_image is not None:
-                metrics_with_timeout.callbacks.append(
-                    QualityMetrics(data.reference_image, data.whole_object_mask, data.background_mask,
-                                tb_summary_writer=metrics_with_timeout.tb, voi_mask_dict=data.voi_masks))
-            metrics_with_timeout.reset() # timeout from now
-            algo = Submission(data, num_subsets=21, step_size=0.1,
-                              stochastic_function=k, function_kwargs=v)
-            try:
-                algo.run(np.inf, callbacks=metrics + submission_callbacks, update_objective_interval=np.inf)
-            except Exception:
-                print_exc(limit=2)
-            finally:
-                del algo
+    for srcdir, outdir, metrics in data_dirs_metrics:
+        data = get_data(srcdir=srcdir, outdir=outdir)
+        metrics_with_timeout = metrics[0]
+        if data.reference_image is not None:
+            metrics_with_timeout.callbacks.append(
+                QualityMetrics(data.reference_image, data.whole_object_mask, data.background_mask,
+                            tb_summary_writer=metrics_with_timeout.tb, voi_mask_dict=data.voi_masks))
+        metrics_with_timeout.reset() # timeout from now
+        algo = Submission(data, num_subsets=21, step_size=0.1,
+                            stochastic_function=PFUN, function_kwargs=functions[PFUN])
+        try:
+            algo.run(np.inf, callbacks=metrics + submission_callbacks, update_objective_interval=np.inf)
+        except Exception:
+            print_exc(limit=2)
+        finally:
+            del algo
 
 # docker run --rm -it --gpus all -p 6006:6006 -v /mnt/share-public/petric/:/mnt/share/petric:ro  -v .:/workdir -w /workdir petric-edge-gpu /bin/bash
