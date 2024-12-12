@@ -8,7 +8,9 @@ Once renamed or symlinked as `main.py`, it will be used by `petric.py` as follow
 >>> algorithm.run(np.inf, callbacks=metrics + submission_callbacks)
 """
 from cil.optimisation.algorithms import ISTA, Algorithm
-from cil.optimisation.functions import IndicatorBox, SGFunction, SAGFunction, SAGAFunction
+from cil.optimisation.functions import IndicatorBox
+from cil.optimisation.functions import SGFunction, SAGFunction, SAGAFunction,\
+                                        SVRGFunction, LSVRGFunction
 from cil.optimisation.utilities import ConstantStepSize, Preconditioner, Sampler, callbacks, StepSizeRule
 from petric import Dataset
 from sirf.contrib.partitioner import partitioner
@@ -62,7 +64,9 @@ class Submission(ISTA):
 
     # note that `issubclass(ISTA, Algorithm) == True`
     def __init__(self, data: Dataset, num_subsets: int = 21, step_size: float = 0.1,
-                 update_objective_interval: int = 10):
+                 update_objective_interval: int = 10, 
+                 stochastic_function="SAGAFunction",
+                 function_kwargs={}):
         """
         Initialisation function, setting up data & (hyper)parameters.
         NB: in practice, `num_subsets` should likely be determined from the data.
@@ -80,7 +84,12 @@ class Submission(ISTA):
         sampler = Sampler.random_with_replacement(len(obj_funs))
 
         # f = -SGFunction(obj_funs, sampler=sampler)   # negative to turn minimiser into maximiser
-        f = -SAGAFunction(obj_funs, sampler=sampler)
+        # f = -SAGAFunction(obj_funs, sampler=sampler)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Using {stochastic_function} with args {function_kwargs}")
+        logger.info(f"Using {num_subsets} subsets and initial step size {step_size}")
+        f = -eval(stochastic_function)(obj_funs, sampler=sampler, **function_kwargs)
         # step_size_rule = ConstantStepSize(step_size) # ISTA default step_size is 0.99*2.0/F.L
         step_size_rule = DecreasingStepSize(initial_step_size=step_size, num_subsets=num_subsets)
         g = IndicatorBox(lower=0, accelerated=False) # non-negativity constraint
@@ -91,3 +100,4 @@ class Submission(ISTA):
 
 
 submission_callbacks = [ MaxIteration(80) ]
+

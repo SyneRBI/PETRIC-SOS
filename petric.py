@@ -363,18 +363,28 @@ else:
     redir.__enter__()
     from main import Submission, submission_callbacks
     assert issubclass(Submission, Algorithm)
-    for srcdir, outdir, metrics in data_dirs_metrics:
-        data = get_data(srcdir=srcdir, outdir=outdir)
-        metrics_with_timeout = metrics[0]
-        if data.reference_image is not None:
-            metrics_with_timeout.callbacks.append(
-                QualityMetrics(data.reference_image, data.whole_object_mask, data.background_mask,
-                               tb_summary_writer=metrics_with_timeout.tb, voi_mask_dict=data.voi_masks))
-        metrics_with_timeout.reset() # timeout from now
-        algo = Submission(data)
-        try:
-            algo.run(np.inf, callbacks=metrics + submission_callbacks, update_objective_interval=np.inf)
-        except Exception:
-            print_exc(limit=2)
-        finally:
-            del algo
+    functions = {'SGFunction'   : {},
+                 'SAGFunction'  : {},
+                 'SAGAFunction' : {},
+                 'SVRGFunction' : {},
+                 'LSVRGFunction': {},
+                }
+    for k,v in functions.items():
+        for srcdir, outdir, metrics in data_dirs_metrics:
+            data = get_data(srcdir=srcdir, outdir=outdir)
+            metrics_with_timeout = metrics[0]
+            if data.reference_image is not None:
+                metrics_with_timeout.callbacks.append(
+                    QualityMetrics(data.reference_image, data.whole_object_mask, data.background_mask,
+                                tb_summary_writer=metrics_with_timeout.tb, voi_mask_dict=data.voi_masks))
+            metrics_with_timeout.reset() # timeout from now
+            algo = Submission(data, num_subsets=21, step_size=0.1,
+                              stochastic_function=k, function_kwargs=v)
+            try:
+                algo.run(np.inf, callbacks=metrics + submission_callbacks, update_objective_interval=np.inf)
+            except Exception:
+                print_exc(limit=2)
+            finally:
+                del algo
+
+# docker run --rm -it --gpus all -p 6006:6006 -v /mnt/share-public/petric/:/mnt/share/petric:ro  -v .:/workdir -w /workdir petric-edge-gpu /bin/bash
