@@ -1,4 +1,5 @@
 #! /bin/bash
+source ~/.bashrc
 set -ex
 
 for f in "SGFunction" "SAGFunction" "SAGAFunction" "SVRGFunction" "LSVRGFunction";
