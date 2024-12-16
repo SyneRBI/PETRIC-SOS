@@ -15,6 +15,9 @@ from cil.optimisation.utilities import ConstantStepSize, Preconditioner, Sampler
 from petric import Dataset
 from sirf.contrib.partitioner import partitioner
 
+import numpy as np
+import os
+
 assert issubclass(ISTA, Algorithm)
 
 
@@ -75,6 +78,9 @@ class Submission(ISTA):
         NB: in practice, `num_subsets` should likely be determined from the data.
         This is just an example. Try to modify and improve it!
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        
         data_sub, acq_models, obj_funs = partitioner.data_partition(data.acquired_data, data.additive_term,
                                                                     data.mult_factors, num_subsets, mode='staggered',
                                                                     initial_image=data.OSEM_image)
@@ -88,17 +94,10 @@ class Submission(ISTA):
 
         # f = -SGFunction(obj_funs, sampler=sampler)   # negative to turn minimiser into maximiser
         # f = -SAGAFunction(obj_funs, sampler=sampler)
-        import logging
-        logger = logging.getLogger(__name__)
         logger.info(f"Using {stochastic_function} with args {function_kwargs}")
         logger.info(f"Using {num_subsets} subsets and initial step size {step_size}")
         f = -eval(stochastic_function)(obj_funs, sampler=sampler, **function_kwargs)
-        # step_size_rule = ConstantStepSize(step_size) # ISTA default step_size is 0.99*2.0/F.L
-        # Default STEP Size from Vaggelis for SAGA
-        # LL = 1./(3*sum([fi[0].L]*len(fi)))
-        # step_size = LL
-        # print("step size for num_subsets {} is {}".format(num_subsets, LL))
-
+        
         step_size_rule = DecreasingStepSize(initial_step_size=step_size, num_subsets=num_subsets)
         g = IndicatorBox(lower=0, accelerated=False) # non-negativity constraint
 
