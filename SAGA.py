@@ -59,6 +59,9 @@ class DecreasingStepSize(StepSizeRule):
         step_size = self.initial_step_size / (1. + 0.1 * tmp_epoch) 
         return step_size
 
+# TODO Add callback to save function.data_passes as npy array
+
+
 class Submission(ISTA):
     """Stochastic subset version of preconditioned ISTA"""
 
@@ -81,7 +84,7 @@ class Submission(ISTA):
         for f in obj_funs: # add prior evenly to every objective function
             f.set_prior(data.prior)
 
-        sampler = Sampler.random_with_replacement(len(obj_funs))
+        sampler = Sampler.random_with_replacement(len(obj_funs), seed=42)
 
         # f = -SGFunction(obj_funs, sampler=sampler)   # negative to turn minimiser into maximiser
         # f = -SAGAFunction(obj_funs, sampler=sampler)
@@ -91,6 +94,11 @@ class Submission(ISTA):
         logger.info(f"Using {num_subsets} subsets and initial step size {step_size}")
         f = -eval(stochastic_function)(obj_funs, sampler=sampler, **function_kwargs)
         # step_size_rule = ConstantStepSize(step_size) # ISTA default step_size is 0.99*2.0/F.L
+        # Default STEP Size from Vaggelis for SAGA
+        # LL = 1./(3*sum([fi[0].L]*len(fi)))
+        # step_size = LL
+        # print("step size for num_subsets {} is {}".format(num_subsets, LL))
+
         step_size_rule = DecreasingStepSize(initial_step_size=step_size, num_subsets=num_subsets)
         g = IndicatorBox(lower=0, accelerated=False) # non-negativity constraint
 
@@ -99,5 +107,6 @@ class Submission(ISTA):
                          update_objective_interval=update_objective_interval)
 
 
-submission_callbacks = [ MaxIteration(80) ]
+# submission_callbacks = [ MaxIteration(NUM_SUBSETS) ]
+submission_callbacks = []
 
