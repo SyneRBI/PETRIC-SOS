@@ -47,6 +47,7 @@ log.info(f"TEAM is set to {TEAM}")
 VERSION = os.getenv("GITHUB_REF_NAME", "")
 log.info(f"VERSION is set to {VERSION}")
 VERSION = os.getenv("NUM_SUBSETS", "21")
+NUM_SUBSETS = int(VERSION)
 log.info(f"VERSION is set to {VERSION}")
 OUTDIR = Path(f"/o/logs/{TEAM}/{VERSION}" if TEAM and VERSION else "./output")
 OUTDIR = Path(f"./output/{TEAM}/{VERSION}" if TEAM and VERSION else "./output")
@@ -374,7 +375,7 @@ else:
     logging.basicConfig(level=getattr(logging, args["--log"].upper()))
     redir = logging_redirect_tqdm()
     redir.__enter__()
-    from main import Submission, submission_callbacks
+    from main import Submission, submission_callbacks, MaxIteration
     assert issubclass(Submission, Algorithm)
     functions = {'SGFunction'   : {},
                  'SAGFunction'  : {},
@@ -390,8 +391,11 @@ else:
                 QualityMetrics(data.reference_image, data.whole_object_mask, data.background_mask,
                             tb_summary_writer=metrics_with_timeout.tb, voi_mask_dict=data.voi_masks))
         metrics_with_timeout.reset() # timeout from now
-        algo = Submission(data, num_subsets=21, step_size=0.1,
+        algo = Submission(data, num_subsets=NUM_SUBSETS, step_size=0.1,
                             stochastic_function=PFUN, function_kwargs=functions[PFUN])
+
+        num_epochs = 1
+        submission_callbacks = [ MaxIteration(NUM_SUBSETS * num_epochs) ]
         try:
             algo.run(np.inf, callbacks=metrics + submission_callbacks, update_objective_interval=np.inf)
         except Exception:
