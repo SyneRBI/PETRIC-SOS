@@ -199,7 +199,7 @@ class MetricsWithTimeout(Callback):
     def __init__(self, seconds=300, outdir=OUTDIR, transverse_slice=None, coronal_slice=None, sagittal_slice=None,
                  tqdm_class=tqdm, **kwargs):
         super().__init__(**kwargs)
-        self._seconds = seconds
+        self._seconds = seconds    
         self.callbacks = [
             cil_callbacks.ProgressCallback(desc=f"{TEAM}/{VERSION}/{outdir.name}", tqdm_class=tqdm_class),
             SaveIters(outdir=outdir, **kwargs),
@@ -328,7 +328,7 @@ if SRCDIR.is_dir() and not os.getenv("PETRIC_SKIP_DATA", False):
     # NB: `MetricsWithTimeout` initialises `SaveIters` which creates `outdir`
     data_dirs_metrics = [
         (SRCDIR / "Siemens_mMR_NEMA_IQ", OUTDIR / "mMR_NEMA",
-         [MetricsWithTimeout(outdir=OUTDIR / "mMR_NEMA", **DATA_SLICES['Siemens_mMR_NEMA_IQ'])]),
+         [MetricsWithTimeout(outdir=OUTDIR / "mMR_NEMA", **DATA_SLICES['Siemens_mMR_NEMA_IQ'], interval=NUM_SUBSETS)]),
         # (SRCDIR / "Siemens_mMR_NEMA_IQ_lowcounts", OUTDIR / "mMR_NEMA_lowcounts",
         #  [MetricsWithTimeout(outdir=OUTDIR / "mMR_NEMA_lowcounts", **DATA_SLICES['Siemens_mMR_NEMA_IQ_lowcounts'])]),
         # (SRCDIR / "NeuroLF_Hoffman_Dataset", OUTDIR / "NeuroLF_Hoffman",
@@ -391,16 +391,20 @@ else:
                 QualityMetrics(data.reference_image, data.whole_object_mask, data.background_mask,
                             tb_summary_writer=metrics_with_timeout.tb, voi_mask_dict=data.voi_masks))
         metrics_with_timeout.reset() # timeout from now
-        algo = Submission(data, num_subsets=NUM_SUBSETS, step_size=0.1,
-                            stochastic_function=PFUN, function_kwargs=functions[PFUN])
+        # set a constant step_size of 1
+        algo = Submission(data, num_subsets=NUM_SUBSETS, step_size=1.0,
+                            stochastic_function=PFUN, function_kwargs=functions[PFUN],
+                            update_objective_interval=NUM_SUBSETS)
 
-        num_epochs = 1
+        num_epochs = 2
         submission_callbacks = [ MaxIteration(NUM_SUBSETS * num_epochs) ]
         try:
             algo.run(np.inf, callbacks=metrics + submission_callbacks, update_objective_interval=np.inf)
         except Exception:
             print_exc(limit=2)
         finally:
+            np.save(os.path.join(outdir, "data_passes.npy"), 
+                     algo.f.function.data_passes)
             del algo
 
 # docker run --rm -it --gpus all -p 6006:6006 -v /mnt/share-public/petric/:/mnt/share/petric:ro  -v .:/workdir -w /workdir petric-edge-gpu /bin/bash

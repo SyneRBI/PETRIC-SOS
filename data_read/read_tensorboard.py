@@ -32,3 +32,8 @@ for e in summary_iterator(path_to_events_file):
             results[v.tag].append(v.simple_value)
 
 print (results)
+
+import numpy as np
+data_passes = np.load(os.path.abspath("../output/SAG/21/mMR_NEMA/data_passes.npy"))
+print (len(data_passes))
+print (data_passes)
