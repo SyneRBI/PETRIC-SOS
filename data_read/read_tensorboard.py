@@ -7,6 +7,8 @@ import os
 
 # https://stackoverflow.com/questions/37304461/tensorflow-importing-data-from-a-tensorboard-tfevent-file
 
+
+# docker run -it --rm -v ~/workdir/PETRIC-SOS/:/root/workdir -w /root/workdir tensorflow/tensorflow bash
 tags = [
 "RMSE_whole_object",
 "RMSE_background",
@@ -25,10 +27,7 @@ results = {
 
 path_to_events_file = os.path.abspath("../output_test1/SAGA/42/mMR_NEMA/events.out.tfevents.1734352210.57d4f72f70fb")
 for e in summary_iterator(path_to_events_file):
-    # print (e.summary.tag)
     for v in e.summary.value:
-        # if v.tag == 'loss' or v.tag == 'accuracy':
-        #     print(v.simple_value)
         if v.tag in tags:
             results[v.tag].append(v.simple_value)
 
