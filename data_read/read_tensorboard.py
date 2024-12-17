@@ -26,6 +26,7 @@ results = {
 }
 
 path_to_events_file = os.path.abspath("../output_test1/SAGA/42/mMR_NEMA/events.out.tfevents.1734352210.57d4f72f70fb")
+path_to_events_file = os.path.abspath("../output/SAGA/63/mMR_NEMA/events.out.tfevents.1734438645.57d4f72f70fb")
 for e in summary_iterator(path_to_events_file):
     for v in e.summary.value:
         if v.tag in tags:
@@ -37,3 +38,11 @@ import numpy as np
 data_passes = np.load(os.path.abspath("../output/SAG/21/mMR_NEMA/data_passes.npy"))
 print (len(data_passes))
 print (data_passes)
+print(data_passes[20::21])
+print([data_passes[21-1], data_passes[21*2 -1]])
+# What to plot
+# 1) Objective value vs data_passes
+# 2) Metrics vs data_passes
+# 2.1) whole object RMSE, 
+# 2.2) background 
+# 2.3) ROIs 
