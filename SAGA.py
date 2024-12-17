@@ -97,7 +97,9 @@ class Submission(ISTA):
         logger.info(f"Using {stochastic_function} with args {function_kwargs}")
         logger.info(f"Using {num_subsets} subsets and initial step size {step_size}")
         f = -eval(stochastic_function)(obj_funs, sampler=sampler, **function_kwargs)
-        
+        if stochastic_function in ['SAGFunction', 'SAGAFunction']:
+            f.function.warm_start_approximate_gradients(data.OSEM_image)
+
         step_size_rule = DecreasingStepSize(initial_step_size=step_size, num_subsets=num_subsets)
         g = IndicatorBox(lower=0, accelerated=False) # non-negativity constraint
 
