@@ -196,7 +196,7 @@ class QualityMetrics(ImageQualityCallback, Callback):
 
 class MetricsWithTimeout(Callback):
     """Stops the algorithm after `seconds`"""
-    def __init__(self, seconds=300, outdir=OUTDIR, transverse_slice=None, coronal_slice=None, sagittal_slice=None,
+    def __init__(self, seconds=72000, outdir=OUTDIR, transverse_slice=None, coronal_slice=None, sagittal_slice=None,
                  tqdm_class=tqdm, **kwargs):
         super().__init__(**kwargs)
         self._seconds = seconds    
@@ -390,13 +390,15 @@ else:
             metrics_with_timeout.callbacks.append(
                 QualityMetrics(data.reference_image, data.whole_object_mask, data.background_mask,
                             tb_summary_writer=metrics_with_timeout.tb, voi_mask_dict=data.voi_masks))
+            metrics_with_timeout.callbacks[-1].THRESHOLD = \
+                {"AEM_VOI": 1e-5, "RMSE_whole_object": 1e-5, "RMSE_background": 1e-5}
         metrics_with_timeout.reset() # timeout from now
         # set a constant step_size of 1
         algo = Submission(data, num_subsets=NUM_SUBSETS, step_size=1.0,
                             stochastic_function=PFUN, function_kwargs=functions[PFUN],
                             update_objective_interval=NUM_SUBSETS)
 
-        num_epochs = 2
+        num_epochs = 80
         submission_callbacks = [ MaxIteration(NUM_SUBSETS * num_epochs) ]
         try:
             algo.run(np.inf, callbacks=metrics + submission_callbacks, update_objective_interval=np.inf)
@@ -406,5 +408,6 @@ else:
             np.save(os.path.join(outdir, "data_passes.npy"), 
                      algo.f.function.data_passes)
             del algo
+            log.info("That's all folks")
 
 # docker run --rm -it --gpus all -p 6006:6006 -v /mnt/share-public/petric/:/mnt/share/petric:ro  -v .:/workdir -w /workdir petric-edge-gpu /bin/bash
