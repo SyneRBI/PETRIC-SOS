@@ -382,6 +382,7 @@ else:
                  'SAGAFunction' : {},
                  'SVRGFunction' : {},
                  'LSVRGFunction': {},
+                 'SOS-SAGAfinal2': {}
                 }
     for srcdir, outdir, metrics in data_dirs_metrics:
         data = get_data(srcdir=srcdir, outdir=outdir)

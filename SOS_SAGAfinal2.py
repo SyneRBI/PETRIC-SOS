@@ -16,6 +16,8 @@ from sirf.contrib.partitioner import partitioner
 from petric import Dataset
 import numpy as np
 
+from SAGA import MaxIteration
+
 assert issubclass(ISTA, Algorithm)
 
 class FullGradientInitialiserFunction(SAGAFunction):
@@ -217,12 +219,16 @@ class Submission(ISTA):
     """Stochastic variance reduced subset version of preconditioned ISTA"""
 
     # note that `issubclass(ISTA, Algorithm) == True`
-    def __init__(self, data: Dataset, update_objective_interval=10):
+    def __init__(self, data: Dataset, num_subsets: int = 21, step_size: float = 0.1,
+                 update_objective_interval: int = 10, 
+                 stochastic_function="SAGAFunction",
+                 function_kwargs={}):
         """
         Initialisation function, setting up data & (hyper)parameters.
         """
         # Very simple heuristic to determine the number of subsets
-        self.num_subsets = calculate_subsets(data.acquired_data, min_counts_per_subset=2**20, max_num_subsets=16) 
+        # self.num_subsets = calculate_subsets(data.acquired_data, min_counts_per_subset=2**20, max_num_subsets=16) 
+        self.num_subsets = num_subsets
         update_interval = self.num_subsets
         # 10% decay per update interval
         decay_perc = 0.1
@@ -242,7 +248,7 @@ class Submission(ISTA):
         for f in obj_funs: # add prior evenly to every objective function
             f.set_prior(data.prior)
             
-        sampler = Sampler.random_without_replacement(len(obj_funs))
+        sampler = Sampler.random_without_replacement(len(obj_funs), seed=42)
         f = -FullGradientInitialiserFunction(obj_funs, sampler=sampler, init_steps=5)
 
         preconditioner = BSREMPreconditioner(obj_funs, epsilon=data.OSEM_image.max()/1e6, freeze_iter=10*update_interval+5)
@@ -251,6 +257,7 @@ class Submission(ISTA):
         step_size_rule = ArmijoStepSearchRule(0.08, beta, decay, max_iter=100, tol=0.2, init_steps=5, update_interval=10*update_interval+5)
         
         super().__init__(initial=data.OSEM_image, f=f, g=g, step_size=step_size_rule, 
-                         preconditioner=preconditioner, update_objective_interval=update_objective_interval)
+                         preconditioner=preconditioner, 
+                         update_objective_interval=update_objective_interval)
         
 submission_callbacks = []
