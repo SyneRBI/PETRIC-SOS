@@ -4,8 +4,9 @@ import numpy as np
 from read_tensorboard import read_tensorboard_events, tags, are_there_results
 
 algorithms = ['LSVRG', 'SAG', 'SAGA', 'SG', 'SOS-SAGAfinal2', 'SVRG']
+algorithms = ['SAG', 'SAGA', 'SG', 'SVRG']
 subsets = [21,42,63]
-dataset = ['mMR_NEMA']
+dataset = ['mMR_NEMA_lowcounts']
 
 allresults = {}
 # path to the result directory
@@ -48,6 +49,7 @@ for alg in algorithms:
             except csv.Error as e:
                 sys.exit('file {}, line {}: {}'.format(filename, reader.line_num, e))
         
+        assert len(iteration_num) == len(objective)
         results[0]["iteration_num"] = iteration_num
         results[0]["objective"] = objective
 
@@ -58,4 +60,4 @@ for k,v in allresults.items():
     print (k)
 
 import pickle
-pickle.dump(allresults, open("allresults.pkl", "wb"))
+pickle.dump(allresults, open("allresults_lowcounts.pkl", "wb"))
