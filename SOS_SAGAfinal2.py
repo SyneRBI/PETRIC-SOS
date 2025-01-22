@@ -57,11 +57,13 @@ class BSREMPreconditioner(Preconditioner):
     Preconditioner for BSREM
     '''
     
-    def __init__(self, obj_funs, freeze_iter = np.inf, epsilon=1e-6):
+    def __init__(self, obj_funs, freeze_iter = np.inf, epsilon=1e-6, max_val=None):
 
         self.epsilon = epsilon
         self.freeze_iter = freeze_iter
         self.freeze = None
+
+        self.max_val = max_val
 
         for i,el in enumerate(obj_funs):
             s_inv = el.get_subset_sensitivity(0)
@@ -75,11 +77,24 @@ class BSREMPreconditioner(Preconditioner):
                 self.s_sum_inv += s_inv
         
     def apply(self, algorithm, gradient, out=None):
+        '''
+        From Sam:
+        Initialising the BSREM prior with a noisy image, the noise in the image amplifies the gradient 
+        update due to it's presence in the preconditioner, resulting in a runaway effect that eventually 
+        leads to NaNs.
+
+        It's a little bit hacky but limiting the maximum value of the image in the preconditioner to the 
+        maximum value of the OSEM input image works well. (Potential justification is that assuming that 
+        the noise, and therefore the maximum value, in the solution should be less than a sufficiently 
+        reconstructed OSEM image).
+        '''
         if algorithm.iteration < self.freeze_iter:
-            ret = gradient * ((algorithm.solution * self.s_sum_inv) + self.epsilon)
+            # ret = gradient * ((algorithm.solution * self.s_sum_inv) + self.epsilon)
+            ret = gradient * ((algorithm.solution.minimum(self.max_val)  + self.epsilon) * self.s_sum_inv)
         else:
             if self.freeze is None:
-                self.freeze = ((algorithm.solution * self.s_sum_inv) + self.epsilon)
+                self.freeze = ((algorithm.solution.minimum(self.max_val)  + self.epsilon) * self.s_sum_inv)
+                # self.freeze = ((algorithm.solution * self.s_sum_inv) + self.epsilon)
             ret =  gradient * self.freeze
         if out is not None:
             out.fill(ret)
@@ -136,7 +151,7 @@ class ArmijoStepSearchRule(StepSizeRule):
             # Armijo step size search
             for _ in range(self.max_iter):
                 # Proximal step
-                x_new = algorithm.solution.copy().sapyb(1, precond_grad, -step_size)
+                x_new = algorithm.solution.sapyb(1, precond_grad, -step_size)
                 algorithm.g.proximal(x_new, step_size, out=x_new)
                 f_x_new = algorithm.f(x_new) + algorithm.g(x_new)
                 # Armijo condition check
@@ -235,8 +250,18 @@ class Submission(ISTA):
         decay = (1/(1-decay_perc) - 1)/update_interval
         beta = 0.5
         
+        print("Creating the preconditioner")
+        _, _, obj_funs = partitioner.data_partition(data.acquired_data, data.additive_term,
+                                                                    data.mult_factors, 1, mode='staggered',
+                                                                    initial_image=data.OSEM_image)
+        
+        preconditioner = BSREMPreconditioner(obj_funs, 
+                                             epsilon=data.OSEM_image.max()/1e6, 
+                                             freeze_iter=10*update_interval+5,
+                                             max_val = data.OSEM_image.max())
+        
         print(f"Using {self.num_subsets} subsets")
-
+        
         _, _, obj_funs = partitioner.data_partition(data.acquired_data, data.additive_term,
                                                                     data.mult_factors, self.num_subsets, mode='staggered',
                                                                     initial_image=data.OSEM_image)
@@ -248,13 +273,18 @@ class Submission(ISTA):
         for f in obj_funs: # add prior evenly to every objective function
             f.set_prior(data.prior)
             
+        
         sampler = Sampler.random_without_replacement(len(obj_funs), seed=42)
         f = -FullGradientInitialiserFunction(obj_funs, sampler=sampler, init_steps=5)
 
-        preconditioner = BSREMPreconditioner(obj_funs, epsilon=data.OSEM_image.max()/1e6, freeze_iter=10*update_interval+5)
+        
         g = IndicatorBox(lower=0, accelerated=False) # non-negativity constraint
-            
-        step_size_rule = ArmijoStepSearchRule(0.08, beta, decay, max_iter=100, tol=0.2, init_steps=5, update_interval=10*update_interval+5)
+        
+        # Sam's code used 0.08
+        # Sams = True
+        # initial_step_size = 0.08 if Sams else 1.
+        initial_step_size = 0.08
+        step_size_rule = ArmijoStepSearchRule(initial_step_size, beta, decay, max_iter=100, tol=0.2, init_steps=5, update_interval=10*update_interval+5)
         
         super().__init__(initial=data.OSEM_image, f=f, g=g, step_size=step_size_rule, 
                          preconditioner=preconditioner, 
