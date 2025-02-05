@@ -283,7 +283,7 @@ class Submission(ISTA):
         # Sam's code used 0.08
         # Sams = True
         # initial_step_size = 0.08 if Sams else 1.
-        initial_step_size = 0.08
+        initial_step_size = 1. * 21 / self.num_subsets
         step_size_rule = ArmijoStepSearchRule(initial_step_size, beta, decay, max_iter=100, tol=0.2, init_steps=5, update_interval=10*update_interval+5)
         
         super().__init__(initial=data.OSEM_image, f=f, g=g, step_size=step_size_rule, 
