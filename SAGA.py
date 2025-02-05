@@ -51,15 +51,21 @@ class MyPreconditioner(Preconditioner):
 
 class DecreasingStepSize(StepSizeRule):
     
-    def __init__(self, initial_step_size, num_subsets):
+    def __init__(self, initial_step_size, num_subsets, relaxation_par=0.02):
         self.iteration_num = 0
         self.num_subsets = num_subsets
         self.initial_step_size = initial_step_size
+        self.relaxation_par = relaxation_par
 
     def get_step_size(self, algorithm):
         self.iteration_num += 1
-        tmp_epoch = self.iteration_num // (self.num_subsets/2)
-        step_size = self.initial_step_size / (1. + 0.1 * tmp_epoch) 
+        # THINK: we should not depend on the number of subsets so strongly
+        # the relaxation parameter could be independent of the number of subsets
+        # tmp_epoch = self.iteration_num // (self.num_subsets/2)
+        # step_size = self.initial_step_size / (1. + 0.1 * tmp_epoch) 
+        
+        step_size = self.initial_step_size / (1.0 + self.relaxation_par * self.iteration_num)
+        
         return step_size
 
 # TODO Add callback to save function.data_passes as npy array
