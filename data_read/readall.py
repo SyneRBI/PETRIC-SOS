@@ -2,9 +2,10 @@ import glob
 import os
 import numpy as np
 from read_tensorboard import read_tensorboard_events, tags, are_there_results
+from warnings import warn
 
 algorithms = ['LSVRG', 'SAG', 'SAGA', 'SG', 'SOS-SAGAfinal2', 'SVRG']
-algorithms = ['SAG', 'SAGA', 'SG', 'SVRG']
+# algorithms = ['SAG', 'SAGA', 'SG', 'SVRG']
 subsets = [21,42,63]
 dataset = ['mMR_NEMA_lowcounts']
 
@@ -31,7 +32,7 @@ for alg in algorithms:
                     print (f"No results in event file {event_file}")
 
         if len(results) != 1:
-            raise ValueError(f"{alg} {sub} Expected 1 result, found {len(results)}")
+            warn(f"{alg} {sub} Expected 1 result, found {len(results)}")
         # add the objective values and data passes to the results
         data_passes = np.load(os.path.join(events_path, "data_passes.npy"))
         results[0]["data_passes"] = data_passes
@@ -60,4 +61,4 @@ for k,v in allresults.items():
     print (k)
 
 import pickle
-pickle.dump(allresults, open("allresults_lowcounts.pkl", "wb"))
+pickle.dump(allresults, open("allresults_lowcounts2.pkl", "wb"))
